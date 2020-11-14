@@ -693,6 +693,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_i(sesskey, "FontQuality", conf_get_int(conf, CONF_font_quality));
     write_setting_i(sesskey, "FontVTMode", conf_get_int(conf, CONF_vtmode));
     write_setting_b(sesskey, "UseSystemColours", conf_get_bool(conf, CONF_system_colour));
+    write_setting_i(sesskey, "Transparency", conf_get_int(conf, CONF_transparency));
     write_setting_b(sesskey, "TryPalette", conf_get_bool(conf, CONF_try_palette));
     write_setting_b(sesskey, "ANSIColour", conf_get_bool(conf, CONF_ansi_colour));
     write_setting_b(sesskey, "Xterm256Colour", conf_get_bool(conf, CONF_xterm_256_colour));
@@ -748,6 +749,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_i(sesskey, "LockSize", conf_get_int(conf, CONF_resize_action));
     write_setting_b(sesskey, "BCE", conf_get_bool(conf, CONF_bce));
     write_setting_b(sesskey, "BlinkText", conf_get_bool(conf, CONF_blinktext));
+    write_setting_i(sesskey, "BlinkStyle", conf_get_int(conf, CONF_blink_style));
     write_setting_b(sesskey, "X11Forward", conf_get_bool(conf, CONF_x11_forward));
     write_setting_s(sesskey, "X11Display", conf_get_str(conf, CONF_x11_display));
     write_setting_i(sesskey, "X11AuthType", conf_get_int(conf, CONF_x11_auth));
@@ -810,6 +812,19 @@ bool load_settings(const char *section, Conf *conf)
         add_session_to_jumplist(section);
 
     return exists;
+}
+
+/*
+ * FEATURE: PuTTY File
+ * Quick hack to load defaults from file
+ */
+void load_settings_file(char *section, Conf * cfg)
+{
+    settings_r *sesskey;
+    set_storagetype(STORAGE_FILE);
+    sesskey = open_settings_r(section);
+    load_open_settings(sesskey, cfg);
+    close_settings_r(sesskey);
 }
 
 void load_open_settings(settings_r *sesskey, Conf *conf)
@@ -1081,7 +1096,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppi(sesskey, "LocalEdit", AUTO, conf, CONF_localedit);
     gpps(sesskey, "Answerback", "PuTTY", conf, CONF_answerback);
     gppb(sesskey, "AlwaysOnTop", false, conf, CONF_alwaysontop);
-    gppb(sesskey, "FullScreenOnAltEnter", false,
+    gppb(sesskey, "FullScreenOnAltEnter", true,
          conf, CONF_fullscreenonaltenter);
     gppb(sesskey, "HideMousePtr", false, conf, CONF_hide_mouseptr);
     gppb(sesskey, "SunkenEdge", false, conf, CONF_sunken_edge);
@@ -1129,6 +1144,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppi(sesskey, "FontQuality", FQ_DEFAULT, conf, CONF_font_quality);
     gppi(sesskey, "FontVTMode", VT_UNICODE, conf, CONF_vtmode);
     gppb(sesskey, "UseSystemColours", false, conf, CONF_system_colour);
+    gppi(sesskey, "Transparency", 200, conf, CONF_transparency);
     gppb(sesskey, "TryPalette", false, conf, CONF_try_palette);
     gppb(sesskey, "ANSIColour", true, conf, CONF_ansi_colour);
     gppb(sesskey, "Xterm256Colour", true, conf, CONF_xterm_256_colour);
@@ -1213,6 +1229,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppi(sesskey, "LockSize", 0, conf, CONF_resize_action);
     gppb(sesskey, "BCE", true, conf, CONF_bce);
     gppb(sesskey, "BlinkText", false, conf, CONF_blinktext);
+    gppi(sesskey, "BlinkStyle", 0, conf, CONF_blink_style);
     gppb(sesskey, "X11Forward", false, conf, CONF_x11_forward);
     gpps(sesskey, "X11Display", "", conf, CONF_x11_display);
     gppi(sesskey, "X11AuthType", X11_MIT, conf, CONF_x11_auth);
@@ -1277,7 +1294,51 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
 
 bool do_defaults(const char *session, Conf *conf)
 {
-    return load_settings(session, conf);
+    if (STORAGE_REG == get_storagetype())
+        return load_settings(session, conf);
+    else {
+        do_defaults_file(session, conf);
+        return true;
+    }
+}
+
+void do_defaults_file(char *session, Conf *conf)
+{
+    load_settings_file(session, conf);
+}
+
+/** Assume we have files.  If we find anything, it's files.  Otherwise, assume registry. */
+void guess_storage_type(void) {
+    char otherbuf[2048];
+    void *handle;
+    char *result = NULL;
+
+    set_storagetype(STORAGE_FILE);
+    handle = enum_settings_start();
+    if (handle) {
+        // fixme: must use strbuf
+        result = enum_settings_next(handle, otherbuf, sizeof(otherbuf));
+        enum_settings_finish(handle);
+    }
+
+    if (result)
+        set_storagetype(STORAGE_FILE);
+    else
+        set_storagetype(STORAGE_REG);
+}
+
+/** Guess what storagetype we actually want, store it, and call the right do_defaults method */
+void do_defaults_after_detection(char *session, Conf *conf) {
+    guess_storage_type();
+    do_defaults(session, conf);
+}
+
+/** Load from registry, and, if that doesn't make it launchable, load from the file */
+void do_defaults_then_file(char *session, Conf *conf)
+{
+    do_defaults(session, conf);
+    if (conf && !conf_launchable(conf))
+        do_defaults_file(session, conf);
 }
 
 static int sessioncmp(const void *av, const void *bv)

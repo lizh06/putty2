@@ -310,7 +310,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     ctrl_checkbox(s, "Use system colours", 's',
                   HELPCTX(colours_system),
                   conf_checkbox_handler, I(CONF_system_colour));
-
+    ctrl_editbox(s, "Window opacity (50-255)", 't', 30,
+                 HELPCTX(no_help),
+                 conf_editbox_handler, I(CONF_transparency), I(-1));
 
     /*
      * Resize-by-changing-font is a Windows insanity.

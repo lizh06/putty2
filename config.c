@@ -1579,6 +1579,36 @@ static void serial_flow_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
+/*
+ * FEATURE / PuTTY File
+ * Storagetype radio buttons event handler
+ */
+void storagetype_handler(union control *ctrl, void *dlg, void *data, int event)
+{
+    int button;
+    struct sessionsaver_data *ssd =(struct sessionsaver_data *)ctrl->generic.context.p;
+    Conf *conf = (Conf *)data;
+
+    /*
+     * For a standard radio button set, the context parameter gives
+     * offsetof(targetfield, Config), and the extra data per button
+     * gives the value the target field should take if that button
+     * is the one selected.
+     */
+    if (event == EVENT_REFRESH) {
+        // Button index = same as storagetype number. Set according to config
+        button = get_storagetype();
+        dlg_radiobutton_set(ctrl, dlg, button);
+    } else if (event == EVENT_VALCHANGE) {
+        button = dlg_radiobutton_get(ctrl, dlg);
+        set_storagetype(ctrl->radio.buttondata[button].i);
+        get_sesslist(&ssd->sesslist, FALSE);
+        get_sesslist(&ssd->sesslist, TRUE);
+        dlg_refresh(ssd->editbox, dlg);
+        dlg_refresh(ssd->listbox, dlg);
+    }
+}
+
 void setup_config_box(struct controlbox *b, bool midsession,
                       int protocol, int protcfginfo)
 {
@@ -1727,6 +1757,15 @@ void setup_config_box(struct controlbox *b, bool midsession,
         ssd->delbutton = NULL;
     }
     ctrl_columns(s, 1, 100);
+
+    /* FEATURE: File Storage type - The +2 triggers storagetype autoswitching */
+    c = ctrl_radiobuttons(s, NULL, 'f', 2,
+                          HELPCTX(no_help),
+                          storagetype_handler,
+                          P(ssd),
+                          "Sessions from registry", I(STORAGE_REG),
+                          "Sessions from file", I(STORAGE_FILE),
+                          NULL);
 
     s = ctrl_getset(b, "Session", "otheropts", NULL);
     ctrl_radiobuttons(s, "Close window on exit:", 'x', 4,
@@ -2073,6 +2112,24 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_checkbox(s, "Warn before closing window", 'w',
                   HELPCTX(behaviour_closewarn),
                   conf_checkbox_handler, I(CONF_warn_on_close));
+
+    /* FEATURE: Blinking style */
+    /* I'd like to put this on the appearance tab, but that's far too full. */
+    s = ctrl_getset(b, "Window/Behaviour", "blinking",
+		    "Adjust the use of the blinking text");
+    ctrl_checkbox(s, "Enable blinking text", 'n',
+		  HELPCTX(terminal_blink),
+		  conf_checkbox_handler, I(CONF_blinktext));
+
+    ctrl_radiobuttons(s, "Text blinking style", 'b', 4,
+		      HELPCTX(no_help),
+		      conf_radiobutton_handler,
+		      I(CONF_blink_style),
+		      "PC Style", I(0),
+		      "VT100", I(1),
+		      "Inverse", I(2),
+		      "Bold", I(3),
+		      NULL);
 
     /*
      * The Window/Translation panel.

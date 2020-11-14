@@ -107,6 +107,11 @@
 #define ATTR_COLOURS 0x003FFFFU
 #define ATTR_DIM     0x1000000U
 #define ATTR_STRIKE  0x2000000U
+
+#define ATTR_BGBOLD  0x04000000U
+#define ATTR_CONCEAL 0x08000000U
+#define ATTR_ITALIC  0x10000000U
+
 #define ATTR_FGSHIFT 0
 #define ATTR_BGSHIFT 9
 
@@ -1371,6 +1376,7 @@ NORETURN void cleanup_exit(int);
     X(INT, NONE, resize_action) /* RESIZE_TERM, RESIZE_DISABLED, ... */ \
     X(BOOL, NONE, bce) \
     X(BOOL, NONE, blinktext) \
+    X(INT, NONE, blink_style) \
     X(BOOL, NONE, win_name_always) \
     X(INT, NONE, width) \
     X(INT, NONE, height) \
@@ -1395,6 +1401,7 @@ NORETURN void cleanup_exit(int);
     X(BOOL, NONE, xterm_256_colour) \
     X(BOOL, NONE, true_colour) \
     X(BOOL, NONE, system_colour) \
+    X(INT, NONE, transparency) \
     X(BOOL, NONE, try_palette) \
     X(INT, NONE, bold_style) /* 1=font 2=colour (3=both) */ \
     X(INT, INT, colours) \
@@ -1581,6 +1588,12 @@ void load_open_settings(settings_r *sesskey, Conf *conf);
 void get_sesslist(struct sesslist *, bool allocate);
 bool do_defaults(const char *, Conf *);
 void registry_cleanup(void);
+/* FEATURE: PuTTY File
+ * Quick hack to load defaults from file */
+void do_defaults_file(char *, Conf *);
+void do_defaults_then_file(char *, Conf *);
+void do_defaults_after_detection(char *session, Conf *conf);
+void load_settings_file(char *section, Conf * cfg);
 void settings_set_default_protocol(int);
 void settings_set_default_port(int);
 

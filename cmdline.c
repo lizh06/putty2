@@ -405,6 +405,14 @@ int cmdline_process_param(const char *p, char *value,
         loaded_session = true;
         return 2;
     }
+
+    if (!strcmp(p, "-loadfile")) {
+        RETURN(2);
+        do_defaults_file(value, conf);
+        loaded_session = true;
+        return 2;
+    }
+
     for (size_t i = 0; backends[i]; i++) {
         if (p[0] == '-' && !strcmp(p+1, backends[i]->id)) {
             RETURN(1);

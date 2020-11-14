@@ -472,6 +472,54 @@ static void close_session(void *ignored_context)
     }
 }
 
+/*
+ * FEATURE: Transparency
+ */
+typedef DWORD (WINAPI *PSLWA)(HWND, DWORD, BYTE, DWORD);
+static PSLWA pSetLayeredWindowAttributes = NULL;
+static BOOL initialized = FALSE;
+#if !defined(WS_EX_LAYERED)
+  #define WS_EX_LAYERED     0x00080000
+#endif
+#if !defined(LWA_COLORKEY)
+  #define LWA_COLORKEY      0x00000001
+#endif
+#if !defined(LWA_ALPHA)
+  #define LWA_ALPHA         0x00000002
+#endif
+
+/*
+ * Function to set the window transparency
+ */
+BOOL MakeWindowTransparent(HWND hWnd, int factor)
+{
+  // Get the API call we need. If we've tried once, we don't need to try again.
+  if (!initialized) {
+    HMODULE hDLL = LoadLibrary("user32");
+    pSetLayeredWindowAttributes = (PSLWA) GetProcAddress(hDLL, "SetLayeredWindowAttributes");
+    initialized = TRUE;
+  }
+
+  if (pSetLayeredWindowAttributes == NULL) return FALSE;
+
+  if (50 <= factor && factor < 255) {
+    // Make the window transparent
+    // Windows need to be layered to be made transparent.
+    // This is done by modifying the extended style bits to contain WS_EX_LAYARED.
+    SetLastError(0);
+    SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+    if (GetLastError()) return FALSE;
+
+    // Set the 'layered window attributes'. This is where the alpha values get set.
+    return pSetLayeredWindowAttributes (hWnd, RGB(255,255,255), factor, LWA_ALPHA);
+
+  } else {
+    // Make the window opaque
+    SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) & ~WS_EX_LAYERED);
+    return TRUE;
+  }
+}
+
 const unsigned cmdline_tooltype =
     TOOLTYPE_HOST_ARG |
     TOOLTYPE_PORT_ARG |
@@ -903,6 +951,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     term_set_focus(term, GetForegroundWindow() == wgs.term_hwnd);
     UpdateWindow(wgs.term_hwnd);
+
+    MakeWindowTransparent(wgs.term_hwnd, conf_get_int(conf, CONF_transparency));
 
     while (1) {
         HANDLE *handles;
@@ -2395,6 +2445,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             /* Pass new config data to the back end */
             if (backend)
                 backend_reconfig(backend, conf);
+
+	    MakeWindowTransparent(wgs.term_hwnd, conf_get_int(conf, CONF_transparency));
 
             /* Screen size changed ? */
             if (conf_get_int(conf, CONF_height) !=

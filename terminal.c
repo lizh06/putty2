@@ -1220,7 +1220,7 @@ static void seen_disp_event(Terminal *term)
  */
 static void term_schedule_tblink(Terminal *term)
 {
-    if (term->blink_is_real) {
+    if (term->blink_is_real && term->has_focus) {
         if (!term->tblink_pending)
             term->next_tblink = schedule_timer(TBLINK_DELAY, term_timer, term);
         term->tblink_pending = true;
@@ -1459,6 +1459,13 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->bksp_is_delete = conf_get_bool(term->conf, CONF_bksp_is_delete);
     term->blink_cur = conf_get_bool(term->conf, CONF_blink_cur);
     term->blinktext = conf_get_bool(term->conf, CONF_blinktext);
+    term->blink_style = conf_get_int(term->conf, CONF_blink_style);
+    switch (term->blink_style) {
+	default: term->blink_style = ATTR_CONCEAL; break;
+	case 1: term->blink_style = ATTR_DIM; break;
+	case 2: term->blink_style = ATTR_REVERSE; break;
+	case 3: term->blink_style = ATTR_BOLD; break;
+    }
     term->cjk_ambig_wide = conf_get_bool(term->conf, CONF_cjk_ambig_wide);
     term->conf_height = conf_get_int(term->conf, CONF_height);
     term->conf_width = conf_get_int(term->conf, CONF_width);
@@ -5550,13 +5557,49 @@ static void do_paint(Terminal *term)
                      ^ (selected ? ATTR_REVERSE : 0));
 
             /* 'Real' blinking ? */
+// ==== from upstream
             if (term->blink_is_real && (tattr & ATTR_BLINK)) {
                 if (term->has_focus && term->tblinker) {
                     tchar = term->ucsdata->unitab_line[(unsigned char)' '];
                 }
                 tattr &= ~ATTR_BLINK;
             }
-
+/*
+// ==== blink feature
+	 	    if (term->blink_is_real && (tattr & ATTR_BLINK)) {
+ 				tattr &= ~ATTR_BLINK;
+ 				if (term->has_focus && term->tblinker) {
+ 		    		if (term->blink_style && term->blink_is_real <= 1)
+ 						tattr ^= term->blink_style;
+	 		    	else
+ 						tattr |= ATTR_CONCEAL;
+ 				}
+ 	    	}
+	 	    if ((tattr & ATTR_BGBOLD)) {
+		 		int bgc = ((tattr & ATTR_BGMASK) >> ATTR_BGSHIFT);
+	 			if (bgc < 16) bgc |= 8;
+	 			else if (bgc >= 256) bgc |= 1;
+	 			tattr &= ~ATTR_BGMASK;
+	 			tattr &= ~ATTR_BGBOLD;
+	 			tattr |= (bgc << ATTR_BGSHIFT);
+	 	    }
+	 	    if (tattr & ATTR_CONCEAL) {
+	 		    tchar = term->ucsdata->unitab_line[(unsigned char)' '];
+	 			tattr &= ~ATTR_CONCEAL;
+	 	    }
+	 	    if (tattr & ATTR_DIM) {
+	 			// Dim colours
+	 			static int dimmap[] = { 16, 52, 22, 58, 17, 53, 23, 8 };
+	 			int fg = ((tattr & ATTR_FGMASK) >> ATTR_FGSHIFT);
+	 			if (fg < 8) fg = dimmap[fg];
+	 			else if (fg < 16) fg = fg - 8;
+	 			else fg = dimmap[7];
+	 			tattr &= ~ATTR_DIM;
+	 			tattr &= ~ATTR_FGMASK;
+	 			tattr |= (fg << ATTR_FGSHIFT); // Use bold default BG
+	 	    }
+// ==== end feature
+*/
             /*
              * Check the font we'll _probably_ be using to see if
              * the character is wide when we don't want it to be.

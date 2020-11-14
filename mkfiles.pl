@@ -638,7 +638,7 @@ if (defined $makefiles{'cygwin'}) {
                "\n".
     "LDFLAGS = -s\n".
     &splitline("RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1 ".
-      "--define WINVER=0x0400 ".(join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
+      "--define WINVER=0x0601 ".(join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
     "\n".
     &def($makefile_extra{'cygwin'}->{'vars'}) .
     "\n".
@@ -698,10 +698,10 @@ if (defined $makefiles{'vc'}) {
       "# C compilation flags\n".
       "CFLAGS = /nologo /W3 /O1 " .
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
-      " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500 /D_CRT_SECURE_NO_WARNINGS /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE\n".
+      " /D_WINDOWS /D_WIN32_WINDOWS=0x601 /DWINVER=0x601 /D_CRT_SECURE_NO_WARNINGS /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE\n".
       "LFLAGS = /incremental:no /dynamicbase /nxcompat\n".
       "RCFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs).
-      " -DWIN32 -D_WIN32 -DWINVER=0x0400\n".
+      " -DWIN32 -D_WIN32 -DWINVER=0x0601\n".
       "\n".
       &def($makefile_extra{'vc'}->{'vars'}) .
       "\n".
